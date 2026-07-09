@@ -19,7 +19,7 @@ export function UpcomingPanel({ snapshot, onChange }: Props) {
     amount: "",
     currency: snapshot.base,
     date: "",
-    confidence: 80,
+    confidence: "likely" as "guaranteed" | "likely" | "possible",
   });
 
   const submit = async (e: React.FormEvent) => {
