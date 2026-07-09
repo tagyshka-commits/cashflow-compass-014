@@ -132,14 +132,22 @@ export function UpcomingPanel({ snapshot, onChange }: Props) {
             />
           </div>
           {mode === "income" && (
-            <label className="block text-xs text-muted-foreground">
-              Confidence: {form.confidence}%
-              <input
-                type="range" min={0} max={100} value={form.confidence}
-                onChange={(e) => setForm({ ...form, confidence: Number(e.target.value) })}
-                className="w-full mt-1"
-              />
-            </label>
+            <div className="flex gap-1">
+              {(["guaranteed", "likely", "possible"] as const).map((c) => (
+                <button
+                  key={c} type="button"
+                  onClick={() => setForm({ ...form, confidence: c })}
+                  className={
+                    "flex-1 text-[11px] px-2 py-1.5 rounded-md border capitalize " +
+                    (form.confidence === c
+                      ? "bg-foreground text-primary-foreground border-foreground"
+                      : "bg-canvas border-border text-muted-foreground")
+                  }
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           )}
           <button className="w-full py-2 rounded-md bg-foreground text-primary-foreground text-sm font-medium">
             Add {mode}
