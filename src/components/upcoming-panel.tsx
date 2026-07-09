@@ -165,7 +165,7 @@ export function UpcomingPanel({ snapshot, onChange }: Props) {
               <p className="text-sm font-medium truncate">{i.label}</p>
               <p className="text-[11px] text-muted-foreground">
                 {i.date}
-                {i.confidence != null && ` · ${i.confidence}% confidence`}
+                {i.confidence != null && ` · ${i.confidence}`}
               </p>
             </div>
             <div className="text-right shrink-0">
