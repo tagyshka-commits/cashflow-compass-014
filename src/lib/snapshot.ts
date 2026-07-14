@@ -167,7 +167,7 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
       emergency,
       netWorth,
       liabilities,
-      assets: assets + available,
+      assets,
     },
     health: { score, band, reasons },
   };
