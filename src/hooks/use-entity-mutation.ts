@@ -18,10 +18,12 @@ export function useEntityMutation<T extends TableName>(
 ) {
   const invalidate = useInvalidateSnapshot();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tbl = () => supabase.from(table) as any;
+
   const create = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from(table) as any).insert(values);
+      const { error } = await tbl().insert(values);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -33,8 +35,7 @@ export function useEntityMutation<T extends TableName>(
 
   const update = useMutation({
     mutationFn: async ({ id, values }: { id: string; values: Record<string, unknown> }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from(table) as any).update(values).eq("id", id);
+      const { error } = await tbl().update(values).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -46,7 +47,7 @@ export function useEntityMutation<T extends TableName>(
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from(table).delete().eq("id", id);
+      const { error } = await tbl().delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
