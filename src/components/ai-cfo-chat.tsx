@@ -34,10 +34,10 @@ export function AiCfoChat({ snapshot }: Props) {
       .from("ai_messages")
       .select("id, role, content")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(50)
       .then(({ data }) => {
-        if (data) setMessages(data as Msg[]);
+        if (data) setMessages((data as Msg[]).slice().reverse());
       });
   }, [user]);
 
