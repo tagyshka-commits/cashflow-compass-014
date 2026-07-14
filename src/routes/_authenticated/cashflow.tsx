@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_authenticated/cashflow")({
 });
 
 function CashflowPage() {
-  const { snapshot, loading, refresh } = useSnapshot();
+  const { snapshot, loading } = useSnapshot();
   if (loading || !snapshot) return <div className="py-24 text-center label-mono">Loading</div>;
   return (
     <div className="max-w-3xl mx-auto animate-fade-up">
@@ -15,7 +15,7 @@ function CashflowPage() {
         <p className="label-mono mb-2">Flow</p>
         <h1 className="font-display italic text-4xl">Money in motion.</h1>
       </header>
-      <UpcomingPanel snapshot={snapshot} onChange={refresh} />
+      <UpcomingPanel snapshot={snapshot} />
     </div>
   );
 }
