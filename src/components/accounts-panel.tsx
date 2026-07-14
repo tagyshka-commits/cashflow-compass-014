@@ -37,13 +37,28 @@ export function AccountsPanel({ snapshot, onChange }: Props) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    const balance = Number(form.balance);
+    if (!Number.isFinite(balance)) return;
+
+    // Validation: emergency reserves and non-card accounts cannot be negative.
+    // Only credit cards may carry a negative balance (money owed).
+    if (form.is_emergency && balance < 0) {
+      alert("Emergency reserve cannot be negative.");
+      return;
+    }
+    if (form.type !== "card" && balance < 0) {
+      alert(`A ${form.type} account cannot have a negative balance. Use a card or a debt entry instead.`);
+      return;
+    }
+
     setSaving(true);
     await supabase.from("accounts").insert({
       user_id: user.id,
-      name: form.name,
+      name: form.name.trim(),
       type: form.type,
       currency: form.currency,
-      balance: Number(form.balance) || 0,
+      balance,
       is_emergency: form.is_emergency,
       is_liquid: form.is_liquid,
     });
