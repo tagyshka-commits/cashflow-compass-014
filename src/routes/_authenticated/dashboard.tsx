@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
-  const { snapshot, loading, refresh } = useSnapshot();
+  const { snapshot, loading } = useSnapshot();
 
   if (loading || !snapshot) {
     return (
@@ -29,10 +29,10 @@ function Dashboard() {
       <div className="space-y-6 min-w-0">
         <RealityMap snapshot={snapshot} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AccountsPanel snapshot={snapshot} onChange={refresh} />
-          <UpcomingPanel snapshot={snapshot} onChange={refresh} />
+          <AccountsPanel snapshot={snapshot} />
+          <UpcomingPanel snapshot={snapshot} />
         </div>
-        <GoalsPanel snapshot={snapshot} onChange={refresh} />
+        <GoalsPanel snapshot={snapshot} />
       </div>
       <AiCfoChat snapshot={snapshot} />
     </div>
