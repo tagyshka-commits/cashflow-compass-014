@@ -71,32 +71,29 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
 
   const toBase = (n: number, from: string) => convert(n, from, base, rates);
 
-  // Available = liquid, non-emergency, non-crypto (cash/bank/card positive)
+  // assets = sum of all positive account values (single source of truth).
+  // available / availableCrypto / emergency are INFORMATIONAL SUBSETS of assets,
+  // not independent buckets — they must never be re-added to netWorth.
+  let assets = 0;
   let available = 0;
   let availableCrypto = 0;
-  let assets = 0;
   let emergency = 0;
 
   for (const a of accounts) {
-    const value = toBase(Number(a.balance), a.currency);
-    if (a.type === "card") {
-      // Card balance stored as negative = money owed
-      if (Number(a.balance) < 0) {
-        // liability tracked below
-      } else if (a.is_liquid) available += value;
-    } else if (a.is_emergency) {
+    const raw = Number(a.balance);
+    const value = toBase(raw, a.currency);
+
+    // Card with negative balance = liability; tracked in cardDebt below, skip assets.
+    if (a.type === "card" && raw < 0) continue;
+
+    assets += value;
+
+    if (a.is_emergency) {
       emergency += value;
-      assets += value;
     } else if (a.type === "crypto") {
       if (a.is_liquid) availableCrypto += value;
-      assets += value;
-    } else if (a.type === "physical" || a.type === "investment") {
-      assets += value;
-    } else if (a.is_liquid) {
+    } else if (a.is_liquid && (a.type === "cash" || a.type === "bank" || a.type === "card")) {
       available += value;
-      assets += value;
-    } else {
-      assets += value;
     }
   }
 
@@ -111,8 +108,7 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
     .reduce((s, a) => s + toBase(Math.abs(Number(a.balance)), a.currency), 0);
 
   const liabilities = liabilitiesFromDebts + cardDebt;
-  const netWorth = assets + availableCrypto - liabilities + available;
-  // Note: available already excluded from assets above for emergency/crypto branching.
+  const netWorth = assets - liabilities;
 
   // Health score (0-100)
   const reasons: string[] = [];
