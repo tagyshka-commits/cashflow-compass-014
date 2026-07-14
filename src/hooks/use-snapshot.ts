@@ -1,26 +1,35 @@
-import { useEffect, useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { fetchSnapshot, type FinancialSnapshot } from "@/lib/snapshot";
 
+export const snapshotKey = (userId: string | undefined) => ["snapshot", userId] as const;
+
 export function useSnapshot() {
   const { user } = useAuth();
-  const [snap, setSnap] = useState<FinancialSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
-  const refresh = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const s = await fetchSnapshot(user.id);
-      setSnap(s);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  const query = useQuery<FinancialSnapshot>({
+    queryKey: snapshotKey(user?.id),
+    queryFn: () => fetchSnapshot(user!.id),
+    enabled: !!user,
+    staleTime: 15_000,
+  });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ["snapshot"] });
+  }, [qc]);
 
-  return { snapshot: snap, loading, refresh };
+  return {
+    snapshot: query.data ?? null,
+    loading: query.isLoading,
+    refresh,
+  };
+}
+
+export function useInvalidateSnapshot() {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    qc.invalidateQueries({ queryKey: ["snapshot"] });
+  }, [qc]);
 }
