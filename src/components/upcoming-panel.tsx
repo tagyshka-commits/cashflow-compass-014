@@ -221,14 +221,25 @@ export function UpcomingPanel({ snapshot }: Props) {
       } else {
         if (!actionDate) throw new Error("Pick a new date");
         const orig = action.row.date;
-        const updates: Record<string, unknown> =
-          action.row.table === "expected_incomes"
-            ? { status: "delayed", expected_date: actionDate }
-            : { status: "delayed", due_date: actionDate };
-        if (orig) {
-          updates[action.row.table === "expected_incomes" ? "original_expected_date" : "original_due_date"] = orig;
+        if (action.row.table === "expected_incomes") {
+          await supabase
+            .from("expected_incomes")
+            .update({
+              status: "delayed",
+              expected_date: actionDate,
+              ...(orig ? { original_expected_date: orig } : {}),
+            })
+            .eq("id", action.row.id);
+        } else {
+          await supabase
+            .from("committed_expenses")
+            .update({
+              status: "delayed",
+              due_date: actionDate,
+              ...(orig ? { original_due_date: orig } : {}),
+            })
+            .eq("id", action.row.id);
         }
-        await supabase.from(action.row.table).update(updates).eq("id", action.row.id);
         toast.success("Rescheduled");
       }
       invalidate();
