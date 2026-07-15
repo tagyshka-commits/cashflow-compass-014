@@ -54,8 +54,8 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
         .limit(200),
       supabase.from("goals").select("*").eq("user_id", userId).order("priority"),
       supabase.from("debts").select("*").eq("user_id", userId),
-      supabase.from("expected_incomes").select("*").eq("user_id", userId).eq("received", false),
-      supabase.from("committed_expenses").select("*").eq("user_id", userId),
+      supabase.from("expected_incomes").select("*").eq("user_id", userId).in("status", ["pending", "delayed"]),
+      supabase.from("committed_expenses").select("*").eq("user_id", userId).in("status", ["pending", "delayed"]),
     ]);
 
   const profile = profileRes.data ?? null;
@@ -87,6 +87,9 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
     if (a.type === "card" && raw < 0) continue;
 
     assets += value;
+
+    // Protected savings count as assets but never as spendable "available".
+    if (a.is_protected) continue;
 
     if (a.is_emergency) {
       emergency += value;
