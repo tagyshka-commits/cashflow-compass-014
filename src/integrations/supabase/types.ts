@@ -23,9 +23,13 @@ export type Database = {
           institution: string | null
           is_emergency: boolean
           is_liquid: boolean
+          is_protected: boolean
           name: string
           notes: string | null
+          storage_location: string | null
           type: Database["public"]["Enums"]["account_type"]
+          unlock_condition: string | null
+          unlock_date: string | null
           updated_at: string
           user_id: string
         }
@@ -37,9 +41,13 @@ export type Database = {
           institution?: string | null
           is_emergency?: boolean
           is_liquid?: boolean
+          is_protected?: boolean
           name: string
           notes?: string | null
+          storage_location?: string | null
           type: Database["public"]["Enums"]["account_type"]
+          unlock_condition?: string | null
+          unlock_date?: string | null
           updated_at?: string
           user_id: string
         }
@@ -51,9 +59,13 @@ export type Database = {
           institution?: string | null
           is_emergency?: boolean
           is_liquid?: boolean
+          is_protected?: boolean
           name?: string
           notes?: string | null
+          storage_location?: string | null
           type?: Database["public"]["Enums"]["account_type"]
+          unlock_condition?: string | null
+          unlock_date?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -93,7 +105,10 @@ export type Database = {
           id: string
           name: string
           notes: string | null
+          original_due_date: string | null
+          paid_at: string | null
           recurrence: string | null
+          status: Database["public"]["Enums"]["expense_status"]
           user_id: string
         }
         Insert: {
@@ -105,7 +120,10 @@ export type Database = {
           id?: string
           name: string
           notes?: string | null
+          original_due_date?: string | null
+          paid_at?: string | null
           recurrence?: string | null
+          status?: Database["public"]["Enums"]["expense_status"]
           user_id: string
         }
         Update: {
@@ -117,7 +135,10 @@ export type Database = {
           id?: string
           name?: string
           notes?: string | null
+          original_due_date?: string | null
+          paid_at?: string | null
           recurrence?: string | null
+          status?: Database["public"]["Enums"]["expense_status"]
           user_id?: string
         }
         Relationships: []
@@ -176,8 +197,11 @@ export type Database = {
           expected_date: string | null
           id: string
           notes: string | null
+          original_expected_date: string | null
           received: boolean
+          received_at: string | null
           source: string
+          status: Database["public"]["Enums"]["income_status"]
           user_id: string
         }
         Insert: {
@@ -188,8 +212,11 @@ export type Database = {
           expected_date?: string | null
           id?: string
           notes?: string | null
+          original_expected_date?: string | null
           received?: boolean
+          received_at?: string | null
           source: string
+          status?: Database["public"]["Enums"]["income_status"]
           user_id: string
         }
         Update: {
@@ -200,8 +227,11 @@ export type Database = {
           expected_date?: string | null
           id?: string
           notes?: string | null
+          original_expected_date?: string | null
           received?: boolean
+          received_at?: string | null
           source?: string
+          status?: Database["public"]["Enums"]["income_status"]
           user_id?: string
         }
         Relationships: []
@@ -345,8 +375,15 @@ export type Database = {
         | "physical"
       ai_role: "user" | "assistant" | "system"
       debt_direction: "i_owe" | "owed_to_me"
+      expense_status: "pending" | "paid" | "delayed" | "cancelled"
       finance_mode: "personal" | "family" | "business"
       income_confidence: "guaranteed" | "likely" | "possible"
+      income_status:
+        | "pending"
+        | "received"
+        | "delayed"
+        | "converted"
+        | "cancelled"
       transaction_kind: "income" | "expense" | "transfer"
     }
     CompositeTypes: {
@@ -485,8 +522,16 @@ export const Constants = {
       ],
       ai_role: ["user", "assistant", "system"],
       debt_direction: ["i_owe", "owed_to_me"],
+      expense_status: ["pending", "paid", "delayed", "cancelled"],
       finance_mode: ["personal", "family", "business"],
       income_confidence: ["guaranteed", "likely", "possible"],
+      income_status: [
+        "pending",
+        "received",
+        "delayed",
+        "converted",
+        "cancelled",
+      ],
       transaction_kind: ["income", "expense", "transfer"],
     },
   },
