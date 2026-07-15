@@ -272,8 +272,11 @@ export function UpcomingPanel({ snapshot }: Props) {
   const cancelItem = async (item: (typeof items)[number]) => {
     if (!confirm(`Cancel "${item.label}"?`)) return;
     try {
-      const table = item.kind === "income" ? "expected_incomes" : "committed_expenses";
-      await supabase.from(table).update({ status: "cancelled" }).eq("id", item.id);
+      if (item.kind === "income") {
+        await supabase.from("expected_incomes").update({ status: "cancelled" }).eq("id", item.id);
+      } else {
+        await supabase.from("committed_expenses").update({ status: "cancelled" }).eq("id", item.id);
+      }
       invalidate();
       toast.success("Cancelled");
     } catch (e) {
