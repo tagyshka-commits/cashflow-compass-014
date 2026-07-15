@@ -88,6 +88,9 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
 
     assets += value;
 
+    // Protected savings count as assets but never as spendable "available".
+    if (a.is_protected) continue;
+
     if (a.is_emergency) {
       emergency += value;
     } else if (a.type === "crypto") {
