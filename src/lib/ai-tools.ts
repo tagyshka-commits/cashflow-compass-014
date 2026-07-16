@@ -30,6 +30,11 @@ export interface BatchItem {
   account_name?: string;
 }
 
+export interface Proposal {
+  name: ProposalName | string;
+  args: Record<string, string | number | undefined | BatchItem[]>;
+}
+
 const findAccount = (accounts: Account[], name?: string) => {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
