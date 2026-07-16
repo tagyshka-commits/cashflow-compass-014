@@ -15,9 +15,18 @@ export type ProposalName =
   | "add_to_goal"
   | "move_to_protected";
 
+export interface BatchItem {
+  kind: "income" | "expense";
+  amount: number;
+  currency: string;
+  category?: string;
+  description?: string;
+  account_name?: string;
+}
+
 export interface Proposal {
   name: ProposalName | string;
-  args: Record<string, string | number | undefined>;
+  args: Record<string, string | number | undefined | BatchItem[]>;
 }
 
 const findAccount = (accounts: Account[], name?: string) => {
@@ -57,23 +66,35 @@ async function insertTx(userId: string, values: {
 
 /** Human-readable preview of what a proposal will change. */
 export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): string[] {
-  const a = p.args;
-  const amt = `${a.amount} ${a.currency}`;
+  const a = p.args as Record<string, string | number | undefined | BatchItem[]>;
+  const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
+  const amt = `${s(a.amount)} ${s(a.currency)}`;
   switch (p.name) {
+    case "log_batch": {
+      const items = (a.items as BatchItem[] | undefined) ?? [];
+      const defaultAcc = a.account_name ? String(a.account_name) : undefined;
+      const lines = items.map((it) => {
+        const sign = it.kind === "income" ? "+" : "−";
+        const acc = it.account_name ?? defaultAcc ?? "?";
+        const cat = it.description ?? it.category ?? "";
+        return `${sign} ${it.amount} ${it.currency} · ${acc}${cat ? ` · ${cat}` : ""}`;
+      });
+      return lines.length ? lines : ["(empty batch)"];
+    }
     case "log_income":
-      return [`Add ${amt} to ${a.account_name}`, `Record income transaction${a.category ? ` · ${a.category}` : ""}`];
+      return [`Add ${amt} to ${s(a.account_name)}`, `Record income${a.category ? ` · ${s(a.category)}` : ""}`];
     case "log_expense":
-      return [`Subtract ${amt} from ${a.account_name}`, `Record expense${a.category ? ` · ${a.category}` : ""}`];
+      return [`Subtract ${amt} from ${s(a.account_name)}`, `Record expense${a.category ? ` · ${s(a.category)}` : ""}`];
     case "transfer":
-      return [`${a.from_account} − ${amt}`, `${a.to_account} + ${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `${s(a.to_account)} + ${amt}`];
     case "lend_money":
-      return [`${a.from_account} − ${amt}`, `Create debt: ${a.borrower} owes you ${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `Create debt: ${s(a.borrower)} owes you ${amt}`];
     case "borrow_money":
-      return [`${a.to_account} + ${amt}`, `Create debt: you owe ${a.lender} ${amt}`];
+      return [`${s(a.to_account)} + ${amt}`, `Create debt: you owe ${s(a.lender)} ${amt}`];
     case "add_to_goal":
-      return [`${a.from_account} − ${amt}`, `Goal "${a.goal_name}" +${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `Goal "${s(a.goal_name)}" +${amt}`];
     case "move_to_protected":
-      return [`${a.from_account} − ${amt}`, `Protected savings at ${a.storage_location} +${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `Protected at ${s(a.storage_location)} +${amt}`];
     default:
       return [`Unknown action: ${p.name}`];
   }
@@ -91,6 +112,36 @@ export async function executeProposal(
   const currency = String(a.currency);
 
   switch (p.name) {
+    case "log_batch": {
+      const items = (a.items as BatchItem[] | undefined) ?? [];
+      const defaultAcc = a.account_name ? String(a.account_name) : undefined;
+      // Re-fetch fresh account balances mid-batch by mutating a working map,
+      // so several items on the same account settle correctly.
+      const working = new Map(snapshot.accounts.map((x) => [x.id, { ...x }]));
+      for (const it of items) {
+        const accName = it.account_name ?? defaultAcc;
+        const found = findAccount([...working.values()], accName);
+        if (!found) throw new Error(`Account "${accName ?? ""}" not found`);
+        const live = working.get(found.id)!;
+        const delta = it.kind === "income" ? Number(it.amount) : -Number(it.amount);
+        const nextBal = Number(live.balance) + delta;
+        const { error: uerr } = await supabase
+          .from("accounts")
+          .update({ balance: nextBal })
+          .eq("id", live.id);
+        if (uerr) throw uerr;
+        live.balance = nextBal;
+        await insertTx(userId, {
+          account_id: live.id,
+          amount: Number(it.amount),
+          currency: String(it.currency),
+          kind: it.kind,
+          category: it.category ?? null,
+          description: it.description ?? null,
+        });
+      }
+      return;
+    }
     case "log_income": {
       const acc = findAccount(snapshot.accounts, String(a.account_name));
       if (!acc) throw new Error(`Account "${a.account_name}" not found`);

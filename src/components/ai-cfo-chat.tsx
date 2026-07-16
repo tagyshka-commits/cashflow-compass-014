@@ -32,6 +32,9 @@ export function AiCfoChat({ snapshot }: Props) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // Remember the last account the user paid with in this session so the AI
+  // can reuse it for subsequent transactions without re-asking.
+  const [defaultAccount, setDefaultAccount] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +75,7 @@ export function AiCfoChat({ snapshot }: Props) {
           message: text,
           snapshot: snapshotForAI(snapshot),
           history: messages.slice(-8).map((m) => ({ role: m.role, content: m.content })),
+          default_account: defaultAccount,
         }),
       });
       const data = await resp.json();
@@ -107,6 +111,14 @@ export function AiCfoChat({ snapshot }: Props) {
       await executeProposal(msg.proposal, snapshot, user.id);
       invalidate();
       toast.success("Applied");
+      // Remember which account was used → default for the next transaction.
+      const a = msg.proposal.args as Record<string, unknown>;
+      const inferred =
+        (typeof a.account_name === "string" && a.account_name) ||
+        (typeof a.from_account === "string" && a.from_account) ||
+        (typeof a.to_account === "string" && a.to_account) ||
+        null;
+      if (inferred) setDefaultAccount(inferred);
       setMessages((m) =>
         m.map((x) => (x.id === msg.id ? { ...x, proposalState: "applied" } : x)),
       );

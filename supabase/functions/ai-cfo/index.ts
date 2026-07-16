@@ -16,14 +16,45 @@ const SYSTEM_PROMPT = `You are Equilibrium — a private CFO for a real person.
 
 You have the user's full financial snapshot (accounts, currencies, crypto, debts, goals, expected income, committed expenses, transactions, net worth, health score) as JSON. Treat it as ground truth.
 
-You can also PROPOSE actions to change the user's ledger by calling one of the tools below. NEVER call a tool without the user's explicit intent in the current message ("I received…", "I spent…", "transfer…", "I lent…", "add to my goal…", etc.). A tool call is a PROPOSAL — the client shows a preview and the user confirms before anything writes to the database. Do not describe the action in prose in the same reply; the preview will render.
+# Multilingual + informal input
 
-When the user just asks a question, answer in prose. Direct, calm, editorial. Numbers first. Short paragraphs. No emojis. Under 200 words.
+The user may write in Russian, English, Turkish, or Chinese, and often mixes languages. Understand slang and informal terms. Common account/payment aliases (case-insensitive, match to the CLOSEST account in the snapshot by name/type):
 
-For tool calls:
-- Match the account by name from the snapshot (case-insensitive). If ambiguous or missing, ASK IN PROSE which account and DO NOT call the tool yet.
-- Use the currency of the source account, not the user's base currency, unless the user is explicit.
-- For "gave to friend for safekeeping" style requests, propose move_to_protected.`;
+- "наличка", "нал", "cash", "кэш", "现金", "nakit" → an account with type "cash" (usually named "Cash").
+- "деньги", "money" (when referring to a payment source) → prefer Cash if present, else ask.
+- "карта", "карточка", "card", "kart", "银行卡" → the account of type "card" or "bank" (usually "Default Card" / user's card).
+- "Visa", "виза", "виса" → the account whose name contains "visa".
+- "банк", "bank", "banka" → account of type "bank".
+- Crypto names ("btc", "eth", "usdt", "крипта") → the matching crypto account.
+
+The user MAY type Russian words on an English keyboard layout by mistake, for example "yfkbxrf" = "наличка" (Russian ЙЦУКЕН → English QWERTY). Recognize obvious layout-swap words and interpret them normally. When in doubt, ask a single clarifying question.
+
+Normalize numbers with commas or spaces ("1 200", "1,200" → 1200). Detect currency from words: "TMT", "манат", "manat" → TMT. "USD", "$", "доллар" → USD. "EUR", "€" → EUR. "RUB", "₽", "руб" → RUB. Default to the currency of the chosen source account if the user did not say.
+
+# Proposals — critical rules
+
+You can PROPOSE actions to change the user's ledger by calling one of the tools below. A tool call is a PROPOSAL — the client shows a preview and the user confirms before anything writes to the database. Do not describe the action in prose in the same reply; the preview will render.
+
+NEVER call a tool without the user's explicit CONFIRMED intent. Distinguish these four cases:
+
+1. Confirmed transaction — "I received 500", "I spent 20 on food", "перевёл 100 с карты на нал". → propose the matching tool.
+2. Expected income — "salary comes on the 25th", "мама пришлёт 1000 в пятницу". → do NOT log income. Answer in prose that this belongs in Expected Income (the user can add it in the Cash Flow page). Do not call a tool.
+3. Potential / scenario — anything with "maybe", "if", "might", "может быть", "если", "возможно", "не уверен", "надеюсь". → NEVER create income. Answer in prose only: acknowledge as an unconfirmed scenario, do NOT touch balances.
+4. Question — "how much cash do I have?", "сколько у меня налички?" → answer in prose, do NOT call a tool.
+
+For "how much cash do I have" style questions, return ONLY the Cash account balance (type="cash"), not the sum of all accounts. Only when the user asks for "total available money", "net worth", "все деньги", or similar, sum across accounts.
+
+# Batch transactions
+
+If the user's message contains MULTIPLE separate transactions in one line (e.g. "600 TMT for vape, 50 TMT for a cap, 140 TMT for lunch"), use the log_batch tool with an "items" array — one item per transaction. Each item has kind ("income" | "expense"), amount, currency, category, description, and (if known) account_name.
+
+The client passes a "default_account" hint if the user has already told you which account to use in this conversation. When that hint is present and the user did not name a different account, populate account_name on every item with that default.
+
+If NO default_account is set AND the user did not name an account, do NOT call a tool. Instead ask in one short prose sentence: "Did you pay for all of these from the same account? Which one?" (or Russian equivalent if the user wrote Russian). Wait for the user's reply, then propose log_batch with account_name filled.
+
+# Style
+
+For questions and clarifications: direct, calm, editorial. Numbers first. Short paragraphs. No emojis. Under 200 words. Match the user's language.`;
 
 const TOOLS = [
   {
@@ -36,7 +67,7 @@ const TOOLS = [
         properties: {
           amount: { type: "number" },
           currency: { type: "string" },
-          account_name: { type: "string", description: "Name of the account that received the money" },
+          account_name: { type: "string" },
           category: { type: "string" },
           description: { type: "string" },
         },
@@ -65,6 +96,39 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "log_batch",
+      description:
+        "Record multiple income/expense transactions in one confirmed batch. Use when the user lists several transactions in a single message.",
+      parameters: {
+        type: "object",
+        properties: {
+          account_name: {
+            type: "string",
+            description: "Default account used for all items unless an item overrides it.",
+          },
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                kind: { type: "string", enum: ["income", "expense"] },
+                amount: { type: "number" },
+                currency: { type: "string" },
+                category: { type: "string" },
+                description: { type: "string" },
+                account_name: { type: "string" },
+              },
+              required: ["kind", "amount", "currency"],
+            },
+          },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "transfer",
       description: "Move money from one account to another. No income or expense.",
       parameters: {
@@ -84,14 +148,14 @@ const TOOLS = [
     type: "function",
     function: {
       name: "lend_money",
-      description: "Record money the user lent to someone. Decrements the source account; creates a debt owed_to_me.",
+      description: "Money the user lent. Decrements source; creates debt owed_to_me.",
       parameters: {
         type: "object",
         properties: {
           amount: { type: "number" },
           currency: { type: "string" },
           from_account: { type: "string" },
-          borrower: { type: "string", description: "Person name" },
+          borrower: { type: "string" },
           due_date: { type: "string" },
         },
         required: ["amount", "currency", "from_account", "borrower"],
@@ -102,7 +166,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "borrow_money",
-      description: "Record money the user borrowed. Increments the target account; creates a debt i_owe.",
+      description: "Money the user borrowed. Increments target; creates debt i_owe.",
       parameters: {
         type: "object",
         properties: {
@@ -137,14 +201,15 @@ const TOOLS = [
     type: "function",
     function: {
       name: "move_to_protected",
-      description: "Move money from a liquid account into protected savings held somewhere (friend, safe, envelope, cold wallet, etc.). Creates a new protected account if one with the given storage_location does not exist.",
+      description:
+        "Move money from a liquid account into protected savings held somewhere (friend, safe, envelope, cold wallet).",
       parameters: {
         type: "object",
         properties: {
           amount: { type: "number" },
           currency: { type: "string" },
           from_account: { type: "string" },
-          storage_location: { type: "string", description: "e.g. 'Friend Alex', 'Home safe', 'Envelope', 'Cold wallet'" },
+          storage_location: { type: "string" },
           purpose: { type: "string" },
         },
         required: ["amount", "currency", "from_account", "storage_location"],
@@ -157,13 +222,16 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { message, snapshot, history } = await req.json();
+    const { message, snapshot, history, default_account } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "system", content: `USER_FINANCIAL_SNAPSHOT (JSON):\n${snapshot}` },
+      ...(default_account
+        ? [{ role: "system", content: `CONVERSATION_DEFAULT_ACCOUNT: "${default_account}". Use this account for transactions unless the user specifies otherwise.` }]
+        : []),
       ...(Array.isArray(history) ? history : []),
       { role: "user", content: message },
     ];
