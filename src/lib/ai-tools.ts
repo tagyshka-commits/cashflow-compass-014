@@ -17,7 +17,17 @@ export type ProposalName =
 
 export interface Proposal {
   name: ProposalName | string;
-  args: Record<string, string | number | undefined>;
+  // args can hold nested batch items (array of objects) alongside scalars.
+  args: Record<string, unknown>;
+}
+
+export interface BatchItem {
+  kind: "income" | "expense";
+  amount: number;
+  currency: string;
+  category?: string;
+  description?: string;
+  account_name?: string;
 }
 
 const findAccount = (accounts: Account[], name?: string) => {
