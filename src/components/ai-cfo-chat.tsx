@@ -75,6 +75,7 @@ export function AiCfoChat({ snapshot }: Props) {
           message: text,
           snapshot: snapshotForAI(snapshot),
           history: messages.slice(-8).map((m) => ({ role: m.role, content: m.content })),
+          default_account: defaultAccount,
         }),
       });
       const data = await resp.json();
