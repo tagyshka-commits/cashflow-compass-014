@@ -32,6 +32,9 @@ export function AiCfoChat({ snapshot }: Props) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // Remember the last account the user paid with in this session so the AI
+  // can reuse it for subsequent transactions without re-asking.
+  const [defaultAccount, setDefaultAccount] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
