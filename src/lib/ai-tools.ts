@@ -69,6 +69,17 @@ export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): stri
   const a = p.args;
   const amt = `${a.amount} ${a.currency}`;
   switch (p.name) {
+    case "log_batch": {
+      const items = (a.items as BatchItem[] | undefined) ?? [];
+      const defaultAcc = a.account_name ? String(a.account_name) : undefined;
+      const lines = items.map((it) => {
+        const sign = it.kind === "income" ? "+" : "−";
+        const acc = it.account_name ?? defaultAcc ?? "?";
+        const cat = it.description ?? it.category ?? "";
+        return `${sign} ${it.amount} ${it.currency} · ${acc}${cat ? ` · ${cat}` : ""}`;
+      });
+      return lines.length ? lines : ["(empty batch)"];
+    }
     case "log_income":
       return [`Add ${amt} to ${a.account_name}`, `Record income transaction${a.category ? ` · ${a.category}` : ""}`];
     case "log_expense":
