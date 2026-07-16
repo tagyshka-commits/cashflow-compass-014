@@ -15,12 +15,6 @@ export type ProposalName =
   | "add_to_goal"
   | "move_to_protected";
 
-export interface Proposal {
-  name: ProposalName | string;
-  // args can hold nested batch items (array of objects) alongside scalars.
-  args: Record<string, unknown>;
-}
-
 export interface BatchItem {
   kind: "income" | "expense";
   amount: number;
