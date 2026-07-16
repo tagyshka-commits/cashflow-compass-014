@@ -111,6 +111,36 @@ export async function executeProposal(
   const currency = String(a.currency);
 
   switch (p.name) {
+    case "log_batch": {
+      const items = (a.items as BatchItem[] | undefined) ?? [];
+      const defaultAcc = a.account_name ? String(a.account_name) : undefined;
+      // Re-fetch fresh account balances mid-batch by mutating a working map,
+      // so several items on the same account settle correctly.
+      const working = new Map(snapshot.accounts.map((x) => [x.id, { ...x }]));
+      for (const it of items) {
+        const accName = it.account_name ?? defaultAcc;
+        const found = findAccount([...working.values()], accName);
+        if (!found) throw new Error(`Account "${accName ?? ""}" not found`);
+        const live = working.get(found.id)!;
+        const delta = it.kind === "income" ? Number(it.amount) : -Number(it.amount);
+        const nextBal = Number(live.balance) + delta;
+        const { error: uerr } = await supabase
+          .from("accounts")
+          .update({ balance: nextBal })
+          .eq("id", live.id);
+        if (uerr) throw uerr;
+        live.balance = nextBal;
+        await insertTx(userId, {
+          account_id: live.id,
+          amount: Number(it.amount),
+          currency: String(it.currency),
+          kind: it.kind,
+          category: it.category ?? null,
+          description: it.description ?? null,
+        });
+      }
+      return;
+    }
     case "log_income": {
       const acc = findAccount(snapshot.accounts, String(a.account_name));
       if (!acc) throw new Error(`Account "${a.account_name}" not found`);
