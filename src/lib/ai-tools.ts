@@ -82,19 +82,19 @@ export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): stri
       return lines.length ? lines : ["(empty batch)"];
     }
     case "log_income":
-      return [`Add ${amt} to ${a.account_name}`, `Record income transaction${a.category ? ` · ${a.category}` : ""}`];
+      return [`Add ${amt} to ${s(a.account_name)}`, `Record income${a.category ? ` · ${s(a.category)}` : ""}`];
     case "log_expense":
-      return [`Subtract ${amt} from ${a.account_name}`, `Record expense${a.category ? ` · ${a.category}` : ""}`];
+      return [`Subtract ${amt} from ${s(a.account_name)}`, `Record expense${a.category ? ` · ${s(a.category)}` : ""}`];
     case "transfer":
-      return [`${a.from_account} − ${amt}`, `${a.to_account} + ${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `${s(a.to_account)} + ${amt}`];
     case "lend_money":
-      return [`${a.from_account} − ${amt}`, `Create debt: ${a.borrower} owes you ${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `Create debt: ${s(a.borrower)} owes you ${amt}`];
     case "borrow_money":
-      return [`${a.to_account} + ${amt}`, `Create debt: you owe ${a.lender} ${amt}`];
+      return [`${s(a.to_account)} + ${amt}`, `Create debt: you owe ${s(a.lender)} ${amt}`];
     case "add_to_goal":
-      return [`${a.from_account} − ${amt}`, `Goal "${a.goal_name}" +${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `Goal "${s(a.goal_name)}" +${amt}`];
     case "move_to_protected":
-      return [`${a.from_account} − ${amt}`, `Protected savings at ${a.storage_location} +${amt}`];
+      return [`${s(a.from_account)} − ${amt}`, `Protected at ${s(a.storage_location)} +${amt}`];
     default:
       return [`Unknown action: ${p.name}`];
   }
