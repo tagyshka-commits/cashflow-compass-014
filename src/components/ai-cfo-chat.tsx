@@ -111,6 +111,14 @@ export function AiCfoChat({ snapshot }: Props) {
       await executeProposal(msg.proposal, snapshot, user.id);
       invalidate();
       toast.success("Applied");
+      // Remember which account was used → default for the next transaction.
+      const a = msg.proposal.args as Record<string, unknown>;
+      const inferred =
+        (typeof a.account_name === "string" && a.account_name) ||
+        (typeof a.from_account === "string" && a.from_account) ||
+        (typeof a.to_account === "string" && a.to_account) ||
+        null;
+      if (inferred) setDefaultAccount(inferred);
       setMessages((m) =>
         m.map((x) => (x.id === msg.id ? { ...x, proposalState: "applied" } : x)),
       );
