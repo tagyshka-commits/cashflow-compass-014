@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { convert, DEFAULT_RATES_TO_USD, CRYPTO_CODES } from "@/lib/money";
+import { coachGoal } from "@/lib/goal-coach";
 import type { Database } from "@/integrations/supabase/types";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -199,14 +200,24 @@ export function snapshotForAI(s: FinancialSnapshot): string {
       is_liquid: a.is_liquid,
       is_crypto: CRYPTO_CODES.includes(a.currency),
     })),
-    goals: s.goals.map((g) => ({
-      name: g.name,
-      target: Number(g.target_amount),
-      current: Number(g.current_amount),
-      currency: g.currency,
-      target_date: g.target_date,
-      priority: g.priority,
-    })),
+    goals: s.goals.map((g) => {
+      const c = coachGoal(g);
+      return {
+        name: g.name,
+        target: Number(g.target_amount),
+        current: Number(g.current_amount),
+        currency: g.currency,
+        target_date: g.target_date,
+        priority: g.priority,
+        tier: c.tier,
+        status: c.status,
+        progress_pct: round(c.progressPct),
+        days_left: c.daysLeft,
+        required_daily: c.required.daily != null ? round(c.required.daily) : null,
+        required_weekly: c.required.weekly != null ? round(c.required.weekly) : null,
+        required_monthly: c.required.monthly != null ? round(c.required.monthly) : null,
+      };
+    }),
     debts: s.debts.map((d) => ({
       name: d.name,
       direction: d.direction,
