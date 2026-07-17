@@ -14,6 +14,7 @@ export type Goal = Database["public"]["Tables"]["goals"]["Row"];
 export type Debt = Database["public"]["Tables"]["debts"]["Row"];
 export type ExpectedIncome = Database["public"]["Tables"]["expected_incomes"]["Row"];
 export type CommittedExpense = Database["public"]["Tables"]["committed_expenses"]["Row"];
+export type Scenario = Database["public"]["Tables"]["scenarios"]["Row"];
 
 export interface FinancialSnapshot {
   profile: Profile | null;
@@ -25,6 +26,7 @@ export interface FinancialSnapshot {
   debts: Debt[];
   expected: ExpectedIncome[];
   committed: CommittedExpense[];
+  scenarios: Scenario[];
   reality: {
     available: number;
     availableCrypto: number;
@@ -43,7 +45,7 @@ export interface FinancialSnapshot {
 }
 
 export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> {
-  const [profileRes, accountsRes, txRes, goalsRes, debtsRes, expectedRes, committedRes] =
+  const [profileRes, accountsRes, txRes, goalsRes, debtsRes, expectedRes, committedRes, scenariosRes] =
     await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("accounts").select("*").eq("user_id", userId).order("created_at"),
@@ -57,6 +59,7 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
       supabase.from("debts").select("*").eq("user_id", userId),
       supabase.from("expected_incomes").select("*").eq("user_id", userId).in("status", ["pending", "delayed"]),
       supabase.from("committed_expenses").select("*").eq("user_id", userId).in("status", ["pending", "delayed"]),
+      supabase.from("scenarios").select("*").eq("user_id", userId).eq("status", "open").order("created_at", { ascending: false }),
     ]);
 
   const profile = profileRes.data ?? null;
@@ -69,6 +72,7 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
   const debts = debtsRes.data ?? [];
   const expected = expectedRes.data ?? [];
   const committed = committedRes.data ?? [];
+  const scenarios = scenariosRes.data ?? [];
 
   const toBase = (n: number, from: string) => convert(n, from, base, rates);
 
@@ -163,6 +167,7 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
     debts,
     expected,
     committed,
+    scenarios,
     reality: {
       available,
       availableCrypto,
@@ -239,6 +244,15 @@ export function snapshotForAI(s: FinancialSnapshot): string {
       currency: c.currency,
       due_date: c.due_date,
       recurrence: c.recurrence,
+    })),
+    scenarios: s.scenarios.map((x) => ({
+      title: x.title,
+      kind: x.kind,
+      amount: x.amount != null ? Number(x.amount) : null,
+      currency: x.currency,
+      likelihood: x.likelihood,
+      expected_date: x.expected_date,
+      notes: x.notes,
     })),
     health_score: s.health.score,
     recent_transactions: s.transactions.slice(0, 40).map((t) => ({

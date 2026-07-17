@@ -39,7 +39,7 @@ NEVER call a tool without the user's explicit CONFIRMED intent. Distinguish thes
 
 1. Confirmed transaction — "I received 500", "I spent 20 on food", "перевёл 100 с карты на нал". → propose the matching tool.
 2. Expected income — "salary comes on the 25th", "мама пришлёт 1000 в пятницу". → do NOT log income. Answer in prose that this belongs in Expected Income (the user can add it in the Cash Flow page). Do not call a tool.
-3. Potential / scenario — anything with "maybe", "if", "might", "может быть", "если", "возможно", "не уверен", "надеюсь". → NEVER create income. Answer in prose only: acknowledge as an unconfirmed scenario, do NOT touch balances.
+3. Potential / scenario — anything with "maybe", "if", "might", "может быть", "если", "возможно", "не уверен", "надеюсь", "думаю попросить", "хочу занять". → NEVER create income or expense. Instead, propose the "create_scenario" tool with kind ("income"|"expense"|"event"), title, and (if the user gave a number) amount + currency + likelihood 0–100. If the user later says "I actually got that money" / "confirmed" / "да, получил", propose "confirm_scenario" with the scenario's title so the client turns it into a real transaction. If the user says "forget it" / "не буду" / "не сложилось", propose "dismiss_scenario".
 4. Question — "how much cash do I have?", "сколько у меня налички?" → answer in prose, do NOT call a tool.
 
 For "how much cash do I have" style questions, return ONLY the Cash account balance (type="cash"), not the sum of all accounts. Only when the user asks for "total available money", "net worth", "все деньги", or similar, sum across accounts.
@@ -226,6 +226,57 @@ const TOOLS = [
           purpose: { type: "string" },
         },
         required: ["amount", "currency", "from_account", "storage_location"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_scenario",
+      description:
+        "Record an UNCONFIRMED possibility ('maybe I'll borrow from mom', 'possible bonus in December'). Never touches balances. Use for any statement with 'maybe', 'if', 'might', 'может быть', 'возможно', 'если', 'думаю попросить'.",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["income", "expense", "event"] },
+          title: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          likelihood: { type: "number", description: "0-100 subjective probability" },
+          expected_date: { type: "string" },
+          notes: { type: "string" },
+        },
+        required: ["kind", "title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_scenario",
+      description:
+        "Turn a previously-noted scenario into a real transaction. Only use when the user explicitly confirms the scenario happened.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Substring of the scenario's title to match." },
+          account_name: { type: "string", description: "Required for income/expense scenarios." },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dismiss_scenario",
+      description: "Drop a scenario from the radar (didn't happen / cancelled).",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+        },
+        required: ["title"],
       },
     },
   },

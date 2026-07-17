@@ -13,7 +13,10 @@ export type ProposalName =
   | "lend_money"
   | "borrow_money"
   | "add_to_goal"
-  | "move_to_protected";
+  | "move_to_protected"
+  | "create_scenario"
+  | "confirm_scenario"
+  | "dismiss_scenario";
 
 export interface BatchItem {
   kind: "income" | "expense";
@@ -26,7 +29,7 @@ export interface BatchItem {
 
 export interface Proposal {
   name: ProposalName | string;
-  args: Record<string, string | number | undefined | BatchItem[]>;
+  args: Record<string, string | number | undefined | null | BatchItem[]>;
 }
 
 const findAccount = (accounts: Account[], name?: string) => {
@@ -95,6 +98,18 @@ export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): stri
       return [`${s(a.from_account)} − ${amt}`, `Goal "${s(a.goal_name)}" +${amt}`];
     case "move_to_protected":
       return [`${s(a.from_account)} − ${amt}`, `Protected at ${s(a.storage_location)} +${amt}`];
+    case "create_scenario": {
+      const amtLine = a.amount != null ? `${s(a.amount)} ${s(a.currency ?? "")}` : "(no amount)";
+      const like = a.likelihood != null ? ` · ${s(a.likelihood)}% likely` : "";
+      return [
+        `Note a possibility (not a real transaction):`,
+        `${s(a.kind ?? "event")} · ${s(a.title)} · ${amtLine}${like}`,
+      ];
+    }
+    case "confirm_scenario":
+      return [`Mark scenario "${s(a.title)}" as confirmed and record it as a real transaction.`];
+    case "dismiss_scenario":
+      return [`Remove scenario "${s(a.title)}" from the radar.`];
     default:
       return [`Unknown action: ${p.name}`];
   }
@@ -258,6 +273,56 @@ export async function executeProposal(
       }
       await adjustBalance(from, -amount);
       await adjustBalance(target, amount);
+      return;
+    }
+    case "create_scenario": {
+      const { error } = await supabase.from("scenarios").insert({
+        user_id: userId,
+        kind: (a.kind as "income" | "expense" | "event") ?? "event",
+        title: String(a.title ?? "Untitled"),
+        amount: a.amount != null ? Number(a.amount) : null,
+        currency: a.currency ? String(a.currency) : null,
+        likelihood: a.likelihood != null ? Number(a.likelihood) : 50,
+        expected_date: a.expected_date ? String(a.expected_date) : null,
+        notes: a.notes ? String(a.notes) : null,
+      });
+      if (error) throw error;
+      return;
+    }
+    case "confirm_scenario": {
+      const title = String(a.title ?? "").toLowerCase();
+      const match = snapshot.scenarios.find((x) => x.title.toLowerCase().includes(title));
+      if (!match) throw new Error(`Scenario "${a.title}" not found`);
+      if (match.kind !== "event" && match.amount != null && match.currency) {
+        const accName = a.account_name ? String(a.account_name) : undefined;
+        const acc = findAccount(snapshot.accounts, accName);
+        if (!acc) throw new Error(`Account "${accName ?? ""}" not found`);
+        const amt = Number(match.amount);
+        await adjustBalance(acc, match.kind === "income" ? amt : -amt);
+        await insertTx(userId, {
+          account_id: acc.id,
+          amount: amt,
+          currency: match.currency,
+          kind: match.kind as "income" | "expense",
+          description: match.title,
+        });
+      }
+      const { error } = await supabase
+        .from("scenarios")
+        .update({ status: "confirmed" })
+        .eq("id", match.id);
+      if (error) throw error;
+      return;
+    }
+    case "dismiss_scenario": {
+      const title = String(a.title ?? "").toLowerCase();
+      const match = snapshot.scenarios.find((x) => x.title.toLowerCase().includes(title));
+      if (!match) throw new Error(`Scenario "${a.title}" not found`);
+      const { error } = await supabase
+        .from("scenarios")
+        .update({ status: "dismissed" })
+        .eq("id", match.id);
+      if (error) throw error;
       return;
     }
     default:

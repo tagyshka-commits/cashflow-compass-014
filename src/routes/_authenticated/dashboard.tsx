@@ -5,6 +5,7 @@ import { AiCfoChat } from "@/components/ai-cfo-chat";
 import { AccountsPanel } from "@/components/accounts-panel";
 import { UpcomingPanel } from "@/components/upcoming-panel";
 import { GoalsPanel } from "@/components/goals-panel";
+import { ScenariosPanel } from "@/components/scenarios-panel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -33,6 +34,7 @@ function Dashboard() {
           <UpcomingPanel snapshot={snapshot} />
         </div>
         <GoalsPanel snapshot={snapshot} />
+        <ScenariosPanel snapshot={snapshot} />
       </div>
       <AiCfoChat snapshot={snapshot} />
     </div>
