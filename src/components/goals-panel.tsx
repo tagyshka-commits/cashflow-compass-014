@@ -4,6 +4,13 @@ import { useEntityMutation } from "@/hooks/use-entity-mutation";
 import { FormDialog } from "@/components/form-dialog";
 import { fmtMoney, ALL_CURRENCIES } from "@/lib/money";
 import type { FinancialSnapshot, Goal } from "@/lib/snapshot";
+import {
+  coachGoal,
+  STATUS_LABEL,
+  STATUS_COLOR,
+  TIER_COLOR,
+  type GoalCoach,
+} from "@/lib/goal-coach";
 
 interface Props {
   snapshot: FinancialSnapshot;
@@ -29,6 +36,11 @@ export function GoalsPanel({ snapshot }: Props) {
   const [editing, setEditing] = useState<Goal | null>(null);
   const [form, setForm] = useState(empty(snapshot.base));
 
+  // Quick-add contribution flow
+  const [contribOpen, setContribOpen] = useState(false);
+  const [contribGoal, setContribGoal] = useState<Goal | null>(null);
+  const [contribAmount, setContribAmount] = useState("");
+
   const openCreate = () => {
     setEditing(null);
     setForm(empty(snapshot.base));
@@ -48,10 +60,15 @@ export function GoalsPanel({ snapshot }: Props) {
     setDialogOpen(true);
   };
 
+  const openContrib = (g: Goal, prefill?: number) => {
+    setContribGoal(g);
+    setContribAmount(prefill != null ? prefill.toFixed(2) : "");
+    setContribOpen(true);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
     const target = Number(form.target_amount);
     const current = Number(form.current_amount) || 0;
     if (!Number.isFinite(target) || target <= 0) {
@@ -64,7 +81,6 @@ export function GoalsPanel({ snapshot }: Props) {
       toast.error("Saved amount cannot be negative.");
       return;
     }
-
     const payload = {
       name: form.name.trim(),
       target_amount: target,
@@ -73,13 +89,42 @@ export function GoalsPanel({ snapshot }: Props) {
       target_date: form.target_date || null,
       priority: form.priority,
     };
-
     if (editing) {
       await update.mutateAsync({ id: editing.id, values: payload });
     } else {
       await create.mutateAsync({ ...payload, user_id: user.id });
     }
     setDialogOpen(false);
+  };
+
+  const submitContribution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contribGoal) return;
+    const amt = Number(contribAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      const { toast } = await import("sonner");
+      toast.error("Enter a positive amount.");
+      return;
+    }
+    const next = Math.max(0, Number(contribGoal.current_amount) + amt);
+    await update.mutateAsync({ id: contribGoal.id, values: { current_amount: next } });
+    setContribOpen(false);
+  };
+
+  const renderBar = (c: GoalCoach) => {
+    const expected = c.expectedPct != null ? c.expectedPct * 100 : null;
+    return (
+      <div className="relative h-1.5 rounded-full bg-canvas overflow-hidden mb-2">
+        <div className="h-full bg-blue" style={{ width: `${c.progressPct}%` }} />
+        {expected != null && (
+          <span
+            className="absolute top-0 h-full w-px bg-foreground/40"
+            style={{ left: `${Math.min(100, Math.max(0, expected))}%` }}
+            aria-label="Expected progress"
+          />
+        )}
+      </div>
+    );
   };
 
   return (
@@ -104,30 +149,79 @@ export function GoalsPanel({ snapshot }: Props) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {snapshot.goals.map((g) => {
+            const c = coachGoal(g);
             const target = Number(g.target_amount);
             const current = Number(g.current_amount);
-            const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
             return (
-              <button
-                key={g.id}
-                onClick={() => openEdit(g)}
-                className="panel-inset p-4 text-left hover:bg-elevated transition-colors"
-              >
-                <div className="flex justify-between items-baseline mb-2">
-                  <p className="text-sm font-medium">{g.name}</p>
-                  <p className="ticker text-[11px] text-muted-foreground">{pct.toFixed(0)}%</p>
+              <div key={g.id} className="panel-inset p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <button
+                    onClick={() => openEdit(g)}
+                    className="text-left flex-1 min-w-0 hover:opacity-80"
+                  >
+                    <p className="text-sm font-medium truncate">{g.name}</p>
+                    <p className={`text-[10px] ticker ${TIER_COLOR[c.tier]}`}>
+                      {c.tier.toUpperCase()}
+                    </p>
+                  </button>
+                  <div className="text-right shrink-0">
+                    <p className="ticker text-[11px] text-muted-foreground">
+                      {c.progressPct.toFixed(0)}%
+                    </p>
+                    <p className={`text-[10px] ticker ${STATUS_COLOR[c.status]}`}>
+                      {STATUS_LABEL[c.status]}
+                    </p>
+                  </div>
                 </div>
-                <div className="h-1.5 rounded-full bg-canvas overflow-hidden mb-2">
-                  <div className="h-full bg-blue" style={{ width: `${pct}%` }} />
-                </div>
+
+                {renderBar(c)}
+
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span className="ticker">{fmtMoney(current, g.currency, { compact: true })}</span>
-                  <span className="ticker">of {fmtMoney(target, g.currency, { compact: true })}</span>
+                  <span className="ticker">
+                    of {fmtMoney(target, g.currency, { compact: true })}
+                  </span>
                 </div>
-                {g.target_date && (
-                  <p className="text-[10px] text-muted-foreground mt-1">by {g.target_date}</p>
+
+                <p className="text-[11px] text-foreground/80 leading-snug">{c.headline}</p>
+
+                {c.required.daily != null && c.required.weekly != null && c.required.monthly != null && (
+                  <div className="grid grid-cols-3 gap-1 pt-1">
+                    {(["daily", "weekly", "monthly"] as const).map((k) => {
+                      const v = c.required[k]!;
+                      return (
+                        <div key={k} className="bg-canvas rounded px-2 py-1">
+                          <p className="text-[9px] uppercase tracking-wide text-muted-foreground">
+                            {k}
+                          </p>
+                          <p className="ticker text-[11px]">
+                            {fmtMoney(v, g.currency, { compact: true })}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
-              </button>
+
+                <div className="flex gap-1 pt-1">
+                  <button
+                    onClick={() => openContrib(g)}
+                    disabled={c.status === "done"}
+                    className="flex-1 text-[11px] px-2 py-1.5 rounded-md bg-foreground text-primary-foreground disabled:opacity-40"
+                  >
+                    + Contribute
+                  </button>
+                  {c.required.daily != null && (
+                    <button
+                      onClick={() => openContrib(g, c.required.daily!)}
+                      className="text-[11px] px-2 py-1.5 rounded-md bg-surface-2 border border-border"
+                      title="Add today's required amount"
+                    >
+                      + Today
+                    </button>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -182,6 +276,15 @@ export function GoalsPanel({ snapshot }: Props) {
             onChange={(e) => setForm({ ...form, target_date: e.target.value })}
             className="bg-canvas border border-border rounded-md px-3 py-2 text-sm"
           />
+          <select
+            value={form.priority}
+            onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
+            className="bg-canvas border border-border rounded-md px-3 py-2 text-sm col-span-2"
+          >
+            <option value={1}>Critical — safety, emergencies</option>
+            <option value={2}>Important — education, health</option>
+            <option value={3}>Lifestyle — travel, upgrades</option>
+          </select>
         </div>
         {editing && (
           <button
@@ -197,6 +300,29 @@ export function GoalsPanel({ snapshot }: Props) {
             Delete goal
           </button>
         )}
+      </FormDialog>
+
+      <FormDialog
+        open={contribOpen}
+        onOpenChange={setContribOpen}
+        title={contribGoal ? `Contribute to ${contribGoal.name}` : "Contribute"}
+        onSubmit={submitContribution}
+        submitting={update.isPending}
+      >
+        <input
+          autoFocus
+          required
+          type="number"
+          step="any"
+          placeholder="Amount"
+          value={contribAmount}
+          onChange={(e) => setContribAmount(e.target.value)}
+          className="w-full bg-canvas border border-border rounded-md px-3 py-2 text-sm ticker"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Adds to the goal's saved amount. Account balances aren't touched here — use the CFO chat
+          ("+50 to {contribGoal?.name} from Cash") to move real money.
+        </p>
       </FormDialog>
     </section>
   );
