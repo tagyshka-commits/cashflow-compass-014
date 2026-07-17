@@ -13,7 +13,10 @@ export type ProposalName =
   | "lend_money"
   | "borrow_money"
   | "add_to_goal"
-  | "move_to_protected";
+  | "move_to_protected"
+  | "create_scenario"
+  | "confirm_scenario"
+  | "dismiss_scenario";
 
 export interface BatchItem {
   kind: "income" | "expense";
@@ -26,7 +29,7 @@ export interface BatchItem {
 
 export interface Proposal {
   name: ProposalName | string;
-  args: Record<string, string | number | undefined | BatchItem[]>;
+  args: Record<string, string | number | undefined | null | BatchItem[]>;
 }
 
 const findAccount = (accounts: Account[], name?: string) => {
