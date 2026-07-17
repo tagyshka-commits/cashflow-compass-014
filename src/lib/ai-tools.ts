@@ -303,7 +303,7 @@ export async function executeProposal(
           account_id: acc.id,
           amount: amt,
           currency: match.currency,
-          kind: match.kind,
+          kind: match.kind as "income" | "expense",
           description: match.title,
         });
       }
