@@ -167,6 +167,7 @@ export async function fetchSnapshot(userId: string): Promise<FinancialSnapshot> 
     debts,
     expected,
     committed,
+    scenarios,
     reality: {
       available,
       availableCrypto,
@@ -243,6 +244,15 @@ export function snapshotForAI(s: FinancialSnapshot): string {
       currency: c.currency,
       due_date: c.due_date,
       recurrence: c.recurrence,
+    })),
+    scenarios: s.scenarios.map((x) => ({
+      title: x.title,
+      kind: x.kind,
+      amount: x.amount != null ? Number(x.amount) : null,
+      currency: x.currency,
+      likelihood: x.likelihood,
+      expected_date: x.expected_date,
+      notes: x.notes,
     })),
     health_score: s.health.score,
     recent_transactions: s.transactions.slice(0, 40).map((t) => ({
