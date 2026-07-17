@@ -311,6 +311,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scenarios: {
+        Row: {
+          amount: number | null
+          created_at: string
+          currency: string | null
+          expected_date: string | null
+          id: string
+          kind: string
+          likelihood: number
+          notes: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          expected_date?: string | null
+          id?: string
+          kind: string
+          likelihood?: number
+          notes?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          expected_date?: string | null
+          id?: string
+          kind?: string
+          likelihood?: number
+          notes?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           account_id: string | null
