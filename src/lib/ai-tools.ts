@@ -98,6 +98,18 @@ export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): stri
       return [`${s(a.from_account)} − ${amt}`, `Goal "${s(a.goal_name)}" +${amt}`];
     case "move_to_protected":
       return [`${s(a.from_account)} − ${amt}`, `Protected at ${s(a.storage_location)} +${amt}`];
+    case "create_scenario": {
+      const amtLine = a.amount != null ? `${s(a.amount)} ${s(a.currency ?? "")}` : "(no amount)";
+      const like = a.likelihood != null ? ` · ${s(a.likelihood)}% likely` : "";
+      return [
+        `Note a possibility (not a real transaction):`,
+        `${s(a.kind ?? "event")} · ${s(a.title)} · ${amtLine}${like}`,
+      ];
+    }
+    case "confirm_scenario":
+      return [`Mark scenario "${s(a.title)}" as confirmed and record it as a real transaction.`];
+    case "dismiss_scenario":
+      return [`Remove scenario "${s(a.title)}" from the radar.`];
     default:
       return [`Unknown action: ${p.name}`];
   }
