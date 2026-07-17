@@ -229,6 +229,57 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "create_scenario",
+      description:
+        "Record an UNCONFIRMED possibility ('maybe I'll borrow from mom', 'possible bonus in December'). Never touches balances. Use for any statement with 'maybe', 'if', 'might', 'может быть', 'возможно', 'если', 'думаю попросить'.",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["income", "expense", "event"] },
+          title: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          likelihood: { type: "number", description: "0-100 subjective probability" },
+          expected_date: { type: "string" },
+          notes: { type: "string" },
+        },
+        required: ["kind", "title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "confirm_scenario",
+      description:
+        "Turn a previously-noted scenario into a real transaction. Only use when the user explicitly confirms the scenario happened.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Substring of the scenario's title to match." },
+          account_name: { type: "string", description: "Required for income/expense scenarios." },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "dismiss_scenario",
+      description: "Drop a scenario from the radar (didn't happen / cancelled).",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+        },
+        required: ["title"],
+      },
+    },
+  },
 ];
 
 Deno.serve(async (req: Request) => {
