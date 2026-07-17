@@ -275,6 +275,56 @@ export async function executeProposal(
       await adjustBalance(target, amount);
       return;
     }
+    case "create_scenario": {
+      const { error } = await supabase.from("scenarios").insert({
+        user_id: userId,
+        kind: (a.kind as "income" | "expense" | "event") ?? "event",
+        title: String(a.title ?? "Untitled"),
+        amount: a.amount != null ? Number(a.amount) : null,
+        currency: a.currency ? String(a.currency) : null,
+        likelihood: a.likelihood != null ? Number(a.likelihood) : 50,
+        expected_date: a.expected_date ? String(a.expected_date) : null,
+        notes: a.notes ? String(a.notes) : null,
+      });
+      if (error) throw error;
+      return;
+    }
+    case "confirm_scenario": {
+      const title = String(a.title ?? "").toLowerCase();
+      const match = snapshot.scenarios.find((x) => x.title.toLowerCase().includes(title));
+      if (!match) throw new Error(`Scenario "${a.title}" not found`);
+      if (match.kind !== "event" && match.amount != null && match.currency) {
+        const accName = a.account_name ? String(a.account_name) : undefined;
+        const acc = findAccount(snapshot.accounts, accName);
+        if (!acc) throw new Error(`Account "${accName ?? ""}" not found`);
+        const amt = Number(match.amount);
+        await adjustBalance(acc, match.kind === "income" ? amt : -amt);
+        await insertTx(userId, {
+          account_id: acc.id,
+          amount: amt,
+          currency: match.currency,
+          kind: match.kind,
+          description: match.title,
+        });
+      }
+      const { error } = await supabase
+        .from("scenarios")
+        .update({ status: "confirmed" })
+        .eq("id", match.id);
+      if (error) throw error;
+      return;
+    }
+    case "dismiss_scenario": {
+      const title = String(a.title ?? "").toLowerCase();
+      const match = snapshot.scenarios.find((x) => x.title.toLowerCase().includes(title));
+      if (!match) throw new Error(`Scenario "${a.title}" not found`);
+      const { error } = await supabase
+        .from("scenarios")
+        .update({ status: "dismissed" })
+        .eq("id", match.id);
+      if (error) throw error;
+      return;
+    }
     default:
       throw new Error(`Unknown proposal: ${p.name}`);
   }
