@@ -42,17 +42,27 @@ export function InboxPanel({ snapshot }: Props) {
   const items = useMemo<InboxItem[]>(() => {
     const list: InboxItem[] = [];
 
-    const delay = async (
-      table: "expected_incomes" | "committed_expenses",
-      id: string,
-      dateCol: "expected_date" | "due_date",
-    ) => {
+    const delayIncome = async (id: string) => {
       const next = new Date();
       next.setDate(next.getDate() + 3);
       const iso = next.toISOString().slice(0, 10);
       const { error } = await supabase
-        .from(table)
-        .update({ status: "delayed", [dateCol]: iso })
+        .from("expected_incomes")
+        .update({ status: "delayed", expected_date: iso })
+        .eq("id", id);
+      if (error) toast.error(error.message);
+      else {
+        toast.success("Pushed 3 days");
+        invalidate();
+      }
+    };
+    const delayExpense = async (id: string) => {
+      const next = new Date();
+      next.setDate(next.getDate() + 3);
+      const iso = next.toISOString().slice(0, 10);
+      const { error } = await supabase
+        .from("committed_expenses")
+        .update({ status: "delayed", due_date: iso })
         .eq("id", id);
       if (error) toast.error(error.message);
       else {
