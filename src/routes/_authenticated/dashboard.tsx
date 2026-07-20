@@ -30,6 +30,7 @@ function Dashboard() {
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 animate-fade-up">
       <div className="space-y-6 min-w-0">
         <RealityMap snapshot={snapshot} />
+        <InboxPanel snapshot={snapshot} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AccountsPanel snapshot={snapshot} />
           <UpcomingPanel snapshot={snapshot} />
