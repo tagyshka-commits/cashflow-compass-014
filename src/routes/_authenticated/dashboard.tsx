@@ -6,6 +6,7 @@ import { AccountsPanel } from "@/components/accounts-panel";
 import { UpcomingPanel } from "@/components/upcoming-panel";
 import { GoalsPanel } from "@/components/goals-panel";
 import { ScenariosPanel } from "@/components/scenarios-panel";
+import { InboxPanel } from "@/components/inbox-panel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
