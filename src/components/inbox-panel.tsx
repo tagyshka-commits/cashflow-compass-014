@@ -103,7 +103,7 @@ export function InboxPanel({ snapshot }: Props) {
         actions: [
           {
             label: "Delay 3d",
-            run: () => delay("expected_incomes", inc.id, "expected_date"),
+            run: () => delayIncome(inc.id),
             tone: "muted",
           },
           { label: "Dismiss", run: () => dismiss("expected_incomes", inc.id), tone: "muted" },
@@ -131,7 +131,7 @@ export function InboxPanel({ snapshot }: Props) {
         actions: [
           {
             label: "Delay 3d",
-            run: () => delay("committed_expenses", exp.id, "due_date"),
+            run: () => delayExpense(exp.id),
             tone: "muted",
           },
           { label: "Cancel", run: () => dismiss("committed_expenses", exp.id), tone: "muted" },
