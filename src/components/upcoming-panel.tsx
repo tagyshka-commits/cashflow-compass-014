@@ -298,7 +298,7 @@ export function UpcomingPanel({ snapshot }: Props) {
       <header className="flex items-center justify-between mb-4">
         <div>
           <p className="label-mono mb-1">Cash flow · 30d</p>
-          <h3 className="font-display italic text-xl">What's coming.</h3>
+          <h2 className="font-display italic text-xl">What's coming.</h2>
         </div>
         <div className="flex gap-1">
           <button

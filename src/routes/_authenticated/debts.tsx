@@ -105,7 +105,7 @@ function DebtsPage() {
           { title: "Owed to me", list: owedToMe, tone: "text-green" },
         ].map((col) => (
           <section key={col.title} className="panel p-6">
-            <h3 className="font-display italic text-xl mb-3">{col.title}</h3>
+            <h2 className="font-display italic text-xl mb-3">{col.title}</h2>
             {col.list.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">Nothing here.</p>
             ) : (

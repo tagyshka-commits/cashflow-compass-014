@@ -201,7 +201,7 @@ export function InboxPanel({ snapshot }: Props) {
       <header className="flex items-center justify-between mb-4">
         <div>
           <p className="label-mono mb-1">Inbox · today</p>
-          <h3 className="font-display italic text-xl">What needs you.</h3>
+          <h2 className="font-display italic text-xl">What needs you.</h2>
         </div>
         <span className="text-xs text-muted-foreground ticker">{items.length}</span>
       </header>

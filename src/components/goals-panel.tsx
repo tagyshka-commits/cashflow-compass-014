@@ -132,7 +132,7 @@ export function GoalsPanel({ snapshot }: Props) {
       <header className="flex items-center justify-between mb-4">
         <div>
           <p className="label-mono mb-1">Future</p>
-          <h3 className="font-display italic text-xl">What you're building toward.</h3>
+          <h2 className="font-display italic text-xl">What you're building toward.</h2>
         </div>
         <button
           onClick={openCreate}

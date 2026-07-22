@@ -100,7 +100,7 @@ export function AccountsPanel({ snapshot }: Props) {
       <header className="flex items-center justify-between mb-4">
         <div>
           <p className="label-mono mb-1">Accounts</p>
-          <h3 className="font-display italic text-xl">Where your money lives.</h3>
+          <h2 className="font-display italic text-xl">Where your money lives.</h2>
         </div>
         <button
           onClick={openCreate}
