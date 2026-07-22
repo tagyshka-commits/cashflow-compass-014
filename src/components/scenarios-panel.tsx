@@ -76,7 +76,7 @@ export function ScenariosPanel({ snapshot }: Props) {
       <header className="flex items-center justify-between mb-4">
         <div>
           <p className="label-mono mb-1">Possibilities</p>
-          <h3 className="font-display italic text-xl">Not yet real — but on the radar.</h3>
+          <h2 className="font-display italic text-xl">Not yet real — but on the radar.</h2>
         </div>
         <button
           onClick={() => setOpen(true)}
