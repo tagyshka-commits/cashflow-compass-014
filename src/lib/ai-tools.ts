@@ -32,7 +32,7 @@ export interface BatchItem {
 
 export interface Proposal {
   name: ProposalName | string;
-  args: Record<string, string | number | undefined | null | BatchItem[]>;
+  args: Record<string, string | number | boolean | undefined | null | BatchItem[]>;
 }
 
 const findAccount = (accounts: Account[], name?: string) => {
