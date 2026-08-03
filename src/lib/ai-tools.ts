@@ -45,6 +45,52 @@ const findAccount = (accounts: Account[], name?: string) => {
   );
 };
 
+/** Find an open debt by counterparty name and direction. Loose, case-insensitive match. */
+export const findDebt = (
+  debts: Debt[],
+  name: string | undefined,
+  direction: "owed_to_me" | "i_owe",
+): Debt | null => {
+  if (!name) return null;
+  const lower = name.toLowerCase().trim();
+  const pool = debts.filter((d) => d.direction === direction && Number(d.amount) > 0);
+  return (
+    pool.find((d) => d.name.toLowerCase().trim() === lower) ??
+    pool.find((d) => d.name.toLowerCase().includes(lower) || lower.includes(d.name.toLowerCase())) ??
+    null
+  );
+};
+
+export const DEBT_REPAYMENT_CATEGORY = "Debt Repayment";
+
+/** Split a repayment into the part that clears debt and the leftover. */
+function splitRepayment(
+  debt: Debt,
+  amount: number,
+  currency: string,
+  rates: Record<string, number>,
+) {
+  const remainingInPayCurrency = convert(Number(debt.amount), debt.currency, currency, rates);
+  const appliedPay = Math.min(amount, remainingInPayCurrency);
+  const excess = Math.max(0, amount - remainingInPayCurrency);
+  const appliedInDebtCurrency = convert(appliedPay, currency, debt.currency, rates);
+  const nextDebt = Math.max(0, Number(debt.amount) - appliedInDebtCurrency);
+  return { appliedPay, excess, nextDebt };
+}
+
+async function writeDebtBalance(debt: Debt, nextAmount: number) {
+  const cleared = nextAmount <= 0.0001;
+  const paidNote = `Paid in full · ${new Date().toISOString().slice(0, 10)}`;
+  const notes = cleared
+    ? [debt.notes, paidNote].filter(Boolean).join(" · ")
+    : debt.notes;
+  const { error } = await supabase
+    .from("debts")
+    .update({ amount: cleared ? 0 : nextAmount, notes })
+    .eq("id", debt.id);
+  if (error) throw error;
+}
+
 async function adjustBalance(account: Account, delta: number) {
   const next = Number(account.balance) + delta;
   const { error } = await supabase
