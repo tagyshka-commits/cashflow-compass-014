@@ -4,7 +4,8 @@
  * runs the required Supabase writes. RLS scopes rows to the user.
  */
 import { supabase } from "@/integrations/supabase/client";
-import type { FinancialSnapshot, Account } from "@/lib/snapshot";
+import { convert } from "@/lib/money";
+import type { FinancialSnapshot, Account, Debt } from "@/lib/snapshot";
 
 export type ProposalName =
   | "log_income"
@@ -12,6 +13,8 @@ export type ProposalName =
   | "transfer"
   | "lend_money"
   | "borrow_money"
+  | "receive_debt_repayment"
+  | "pay_debt"
   | "add_to_goal"
   | "move_to_protected"
   | "create_scenario"
@@ -29,7 +32,7 @@ export interface BatchItem {
 
 export interface Proposal {
   name: ProposalName | string;
-  args: Record<string, string | number | undefined | null | BatchItem[]>;
+  args: Record<string, string | number | boolean | undefined | null | BatchItem[]>;
 }
 
 const findAccount = (accounts: Account[], name?: string) => {
@@ -41,6 +44,52 @@ const findAccount = (accounts: Account[], name?: string) => {
     null
   );
 };
+
+/** Find an open debt by counterparty name and direction. Loose, case-insensitive match. */
+export const findDebt = (
+  debts: Debt[],
+  name: string | undefined,
+  direction: "owed_to_me" | "i_owe",
+): Debt | null => {
+  if (!name) return null;
+  const lower = name.toLowerCase().trim();
+  const pool = debts.filter((d) => d.direction === direction && Number(d.amount) > 0);
+  return (
+    pool.find((d) => d.name.toLowerCase().trim() === lower) ??
+    pool.find((d) => d.name.toLowerCase().includes(lower) || lower.includes(d.name.toLowerCase())) ??
+    null
+  );
+};
+
+export const DEBT_REPAYMENT_CATEGORY = "Debt Repayment";
+
+/** Split a repayment into the part that clears debt and the leftover. */
+function splitRepayment(
+  debt: Debt,
+  amount: number,
+  currency: string,
+  rates: Record<string, number>,
+) {
+  const remainingInPayCurrency = convert(Number(debt.amount), debt.currency, currency, rates);
+  const appliedPay = Math.min(amount, remainingInPayCurrency);
+  const excess = Math.max(0, amount - remainingInPayCurrency);
+  const appliedInDebtCurrency = convert(appliedPay, currency, debt.currency, rates);
+  const nextDebt = Math.max(0, Number(debt.amount) - appliedInDebtCurrency);
+  return { appliedPay, excess, nextDebt };
+}
+
+async function writeDebtBalance(debt: Debt, nextAmount: number) {
+  const cleared = nextAmount <= 0.0001;
+  const paidNote = `Paid in full · ${new Date().toISOString().slice(0, 10)}`;
+  const notes = cleared
+    ? [debt.notes, paidNote].filter(Boolean).join(" · ")
+    : debt.notes;
+  const { error } = await supabase
+    .from("debts")
+    .update({ amount: cleared ? 0 : nextAmount, notes })
+    .eq("id", debt.id);
+  if (error) throw error;
+}
 
 async function adjustBalance(account: Account, delta: number) {
   const next = Number(account.balance) + delta;
@@ -69,7 +118,7 @@ async function insertTx(userId: string, values: {
 
 /** Human-readable preview of what a proposal will change. */
 export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): string[] {
-  const a = p.args as Record<string, string | number | undefined | BatchItem[]>;
+  const a = p.args as Record<string, string | number | boolean | undefined | BatchItem[]>;
   const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
   const amt = `${s(a.amount)} ${s(a.currency)}`;
   switch (p.name) {
@@ -94,6 +143,50 @@ export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): stri
       return [`${s(a.from_account)} − ${amt}`, `Create debt: ${s(a.borrower)} owes you ${amt}`];
     case "borrow_money":
       return [`${s(a.to_account)} + ${amt}`, `Create debt: you owe ${s(a.lender)} ${amt}`];
+    case "receive_debt_repayment": {
+      const debt = findDebt(snapshot.debts, s(a.debtor), "owed_to_me");
+      const already = a.already_logged === true || a.already_logged === "true";
+      const lines: string[] = [];
+      if (!already) lines.push(`${s(a.to_account)} + ${amt}`);
+      if (!debt) return [...lines, `No open debt found for "${s(a.debtor)}" — nothing to reduce`];
+      const { appliedPay, excess, nextDebt } = splitRepayment(
+        debt,
+        Number(a.amount),
+        String(a.currency),
+        snapshot.rates,
+      );
+      lines.push(
+        `${debt.name}: debt ${Number(debt.amount)} → ${Math.round(nextDebt * 100) / 100} ${debt.currency}${nextDebt <= 0.0001 ? " (paid)" : ""}`,
+      );
+      lines.push(
+        excess > 0
+          ? `Debt Repayment ${Math.round(appliedPay * 100) / 100} ${s(a.currency)} + income ${Math.round(excess * 100) / 100} ${s(a.currency)}`
+          : `Category · Debt Repayment`,
+      );
+      return lines;
+    }
+    case "pay_debt": {
+      const debt = findDebt(snapshot.debts, s(a.creditor), "i_owe");
+      const already = a.already_logged === true || a.already_logged === "true";
+      const lines: string[] = [];
+      if (!already) lines.push(`${s(a.from_account)} − ${amt}`);
+      if (!debt) return [...lines, `No open debt found for "${s(a.creditor)}" — nothing to reduce`];
+      const { appliedPay, excess, nextDebt } = splitRepayment(
+        debt,
+        Number(a.amount),
+        String(a.currency),
+        snapshot.rates,
+      );
+      lines.push(
+        `You owe ${debt.name}: ${Number(debt.amount)} → ${Math.round(nextDebt * 100) / 100} ${debt.currency}${nextDebt <= 0.0001 ? " (paid)" : ""}`,
+      );
+      lines.push(
+        excess > 0
+          ? `Debt Repayment ${Math.round(appliedPay * 100) / 100} ${s(a.currency)} + expense ${Math.round(excess * 100) / 100} ${s(a.currency)}`
+          : `Category · Debt Repayment`,
+      );
+      return lines;
+    }
     case "add_to_goal":
       return [`${s(a.from_account)} − ${amt}`, `Goal "${s(a.goal_name)}" +${amt}`];
     case "move_to_protected":
@@ -229,6 +322,62 @@ export async function executeProposal(
         due_date: a.due_date ? String(a.due_date) : null,
       });
       if (error) throw error;
+      return;
+    }
+    case "receive_debt_repayment":
+    case "pay_debt": {
+      const isIncoming = p.name === "receive_debt_repayment";
+      const direction = isIncoming ? "owed_to_me" : "i_owe";
+      const counterparty = String(isIncoming ? a.debtor : a.creditor);
+      const already = a.already_logged === true || a.already_logged === "true";
+      const debt = findDebt(snapshot.debts, counterparty, direction);
+
+      const accName = String(isIncoming ? a.to_account : a.from_account ?? "");
+      let applied = amount;
+      let excess = 0;
+      if (debt) {
+        const split = splitRepayment(debt, amount, currency, snapshot.rates);
+        applied = split.appliedPay;
+        excess = split.excess;
+      } else if (isIncoming) {
+        // No matching debt: treat the whole thing as plain income, never create a debt.
+        applied = 0;
+        excess = amount;
+      }
+
+      if (!already) {
+        const acc = findAccount(snapshot.accounts, accName);
+        if (!acc) throw new Error(`Account "${accName}" not found`);
+        await adjustBalance(acc, isIncoming ? amount : -amount);
+        const kind = isIncoming ? "income" : "expense";
+        if (applied > 0) {
+          await insertTx(userId, {
+            account_id: acc.id,
+            amount: Math.round(applied * 100) / 100,
+            currency,
+            kind,
+            category: DEBT_REPAYMENT_CATEGORY,
+            description:
+              (a.description ? String(a.description) : null) ??
+              `${DEBT_REPAYMENT_CATEGORY} · ${debt?.name ?? counterparty}`,
+          });
+        }
+        if (excess > 0) {
+          await insertTx(userId, {
+            account_id: acc.id,
+            amount: Math.round(excess * 100) / 100,
+            currency,
+            kind,
+            category: isIncoming ? "Income" : "Expense",
+            description: `Extra beyond debt · ${debt?.name ?? counterparty}`,
+          });
+        }
+      }
+
+      if (debt) {
+        const { nextDebt } = splitRepayment(debt, amount, currency, snapshot.rates);
+        await writeDebtBalance(debt, nextDebt);
+      }
       return;
     }
     case "add_to_goal": {

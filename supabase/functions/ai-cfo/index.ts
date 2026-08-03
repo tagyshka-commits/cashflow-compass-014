@@ -44,6 +44,20 @@ NEVER call a tool without the user's explicit CONFIRMED intent. Distinguish thes
 
 For "how much cash do I have" style questions, return ONLY the Cash account balance (type="cash"), not the sum of all accounts. Only when the user asks for "total available money", "net worth", "все деньги", or similar, sum across accounts.
 
+# Debt repayments — always adjust the debt
+
+The snapshot contains "debts" with name, direction ("owed_to_me" | "i_owe"), amount, currency.
+
+If the user reports RECEIVING money and the payer's name matches (even loosely, any language, any spelling variant) a debt with direction "owed_to_me", this is a DEBT REPAYMENT, never plain income. Phrasings all mean the same: "Kudrat gave me 200", "Kudrat returned 200", "Kudrat paid me back", "Kudrat repaid his debt", "Kudrat sent me 200", "Kudrat transferred 200", "Kudrat gave back 200", "Kudrat paid part of his debt", "Кудрат отдал 200", "Кудрат вернул долг", "Kudrat 200 verdi".
+
+→ Call receive_debt_repayment with debtor (exact name as in the snapshot), amount, currency, to_account. Do NOT call log_income, and NEVER call lend_money for these (that would duplicate the debt). Do not ask whether to adjust the debt — reducing it is part of the transaction. Never reply "I cannot modify past actions": just propose the repayment.
+
+Partial repayment reduces the remaining balance. An exact repayment closes the debt (marked paid). If the amount exceeds the remaining debt, the debt goes to 0 and the excess is recorded as normal income — the client handles the split automatically.
+
+Mirror case: the user PAYING someone they owe ("I paid Aman back 100", "отдал Аману 100") → call pay_debt with creditor, amount, currency, from_account.
+
+If a repayment was already logged earlier as plain income and only the debt needs correcting, call receive_debt_repayment with already_logged: true and omit to_account — balances stay untouched and only the debt is reduced.
+
 # Batch transactions
 
 If the user's message contains MULTIPLE separate transactions in one line (e.g. "600 TMT for vape, 50 TMT for a cap, 140 TMT for lunch"), use the log_batch tool with an "items" array — one item per transaction. Each item has kind ("income" | "expense"), amount, currency, category, description, and (if known) account_name.
@@ -190,6 +204,49 @@ const TOOLS = [
           due_date: { type: "string" },
         },
         required: ["amount", "currency", "to_account", "lender"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "receive_debt_repayment",
+      description:
+        "A debtor paid the user back. Increments the receiving account, records a 'Debt Repayment' transaction and reduces that debtor's outstanding debt (never creates a new debt). Excess above the remaining debt becomes normal income.",
+      parameters: {
+        type: "object",
+        properties: {
+          debtor: { type: "string", description: "Name of the person as it appears in debts (direction owed_to_me)." },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          to_account: { type: "string", description: "Account that received the money. Omit only when already_logged is true." },
+          already_logged: {
+            type: "boolean",
+            description: "True when the money was already recorded earlier and only the debt must be reduced.",
+          },
+          description: { type: "string" },
+        },
+        required: ["debtor", "amount", "currency"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pay_debt",
+      description:
+        "The user paid back someone they owe. Decrements the source account, records a 'Debt Repayment' expense and reduces that creditor's debt (direction i_owe).",
+      parameters: {
+        type: "object",
+        properties: {
+          creditor: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          from_account: { type: "string" },
+          already_logged: { type: "boolean" },
+          description: { type: "string" },
+        },
+        required: ["creditor", "amount", "currency"],
       },
     },
   },
