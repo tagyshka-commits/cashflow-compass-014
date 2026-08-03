@@ -324,6 +324,62 @@ export async function executeProposal(
       if (error) throw error;
       return;
     }
+    case "receive_debt_repayment":
+    case "pay_debt": {
+      const isIncoming = p.name === "receive_debt_repayment";
+      const direction = isIncoming ? "owed_to_me" : "i_owe";
+      const counterparty = String(isIncoming ? a.debtor : a.creditor);
+      const already = a.already_logged === true || a.already_logged === "true";
+      const debt = findDebt(snapshot.debts, counterparty, direction);
+
+      const accName = String(isIncoming ? a.to_account : a.from_account ?? "");
+      let applied = amount;
+      let excess = 0;
+      if (debt) {
+        const split = splitRepayment(debt, amount, currency, snapshot.rates);
+        applied = split.appliedPay;
+        excess = split.excess;
+      } else if (isIncoming) {
+        // No matching debt: treat the whole thing as plain income, never create a debt.
+        applied = 0;
+        excess = amount;
+      }
+
+      if (!already) {
+        const acc = findAccount(snapshot.accounts, accName);
+        if (!acc) throw new Error(`Account "${accName}" not found`);
+        await adjustBalance(acc, isIncoming ? amount : -amount);
+        const kind = isIncoming ? "income" : "expense";
+        if (applied > 0) {
+          await insertTx(userId, {
+            account_id: acc.id,
+            amount: Math.round(applied * 100) / 100,
+            currency,
+            kind,
+            category: DEBT_REPAYMENT_CATEGORY,
+            description:
+              (a.description ? String(a.description) : null) ??
+              `${DEBT_REPAYMENT_CATEGORY} · ${debt?.name ?? counterparty}`,
+          });
+        }
+        if (excess > 0) {
+          await insertTx(userId, {
+            account_id: acc.id,
+            amount: Math.round(excess * 100) / 100,
+            currency,
+            kind,
+            category: isIncoming ? "Income" : "Expense",
+            description: `Extra beyond debt · ${debt?.name ?? counterparty}`,
+          });
+        }
+      }
+
+      if (debt) {
+        const { nextDebt } = splitRepayment(debt, amount, currency, snapshot.rates);
+        await writeDebtBalance(debt, nextDebt);
+      }
+      return;
+    }
     case "add_to_goal": {
       const from = findAccount(snapshot.accounts, String(a.from_account));
       if (!from) throw new Error(`Source "${a.from_account}" not found`);
