@@ -118,7 +118,7 @@ async function insertTx(userId: string, values: {
 
 /** Human-readable preview of what a proposal will change. */
 export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): string[] {
-  const a = p.args as Record<string, string | number | undefined | BatchItem[]>;
+  const a = p.args as Record<string, string | number | boolean | undefined | BatchItem[]>;
   const s = (v: unknown) => (v === undefined || v === null ? "" : String(v));
   const amt = `${s(a.amount)} ${s(a.currency)}`;
   switch (p.name) {
