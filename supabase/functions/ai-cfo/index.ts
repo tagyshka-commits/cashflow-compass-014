@@ -210,6 +210,49 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "receive_debt_repayment",
+      description:
+        "A debtor paid the user back. Increments the receiving account, records a 'Debt Repayment' transaction and reduces that debtor's outstanding debt (never creates a new debt). Excess above the remaining debt becomes normal income.",
+      parameters: {
+        type: "object",
+        properties: {
+          debtor: { type: "string", description: "Name of the person as it appears in debts (direction owed_to_me)." },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          to_account: { type: "string", description: "Account that received the money. Omit only when already_logged is true." },
+          already_logged: {
+            type: "boolean",
+            description: "True when the money was already recorded earlier and only the debt must be reduced.",
+          },
+          description: { type: "string" },
+        },
+        required: ["debtor", "amount", "currency"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "pay_debt",
+      description:
+        "The user paid back someone they owe. Decrements the source account, records a 'Debt Repayment' expense and reduces that creditor's debt (direction i_owe).",
+      parameters: {
+        type: "object",
+        properties: {
+          creditor: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          from_account: { type: "string" },
+          already_logged: { type: "boolean" },
+          description: { type: "string" },
+        },
+        required: ["creditor", "amount", "currency"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "add_to_goal",
       description: "Move money toward a savings goal from a specific account.",
       parameters: {
