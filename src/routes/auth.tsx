@@ -9,10 +9,22 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Equilibrium" },
-      { name: "description", content: "Sign in to your Personal CFO." },
+      {
+        name: "description",
+        content:
+          "Sign in or create your Equilibrium account to open your Personal CFO cockpit and pick up where your money left off.",
+      },
+      { property: "og:title", content: "Sign in — Equilibrium" },
+      {
+        property: "og:description",
+        content: "Sign in or create your Equilibrium account to open your Personal CFO cockpit.",
+      },
+      { property: "og:url", content: "https://cashflow-compass-014.lovable.app/auth" },
       { name: "robots", content: "noindex" },
     ],
+    links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/auth" }],
   }),
+
   component: AuthPage,
 });
 
