@@ -3,6 +3,17 @@ import { useSnapshot } from "@/hooks/use-snapshot";
 import { AccountsPanel } from "@/components/accounts-panel";
 
 export const Route = createFileRoute("/_authenticated/accounts")({
+  head: () => ({
+    meta: [
+      { title: "Accounts — Equilibrium" },
+      { name: "description", content: "Every place your money exists: cash, bank accounts, cards, crypto and protected savings, balanced in one multi-currency ledger." },
+      { property: "og:title", content: "Accounts — Equilibrium" },
+      { property: "og:description", content: "Every place your money exists: cash, bank accounts, cards, crypto and protected savings, balanced in one multi-currency ledger." },
+      { property: "og:url", content: "https://cashflow-compass-014.lovable.app/accounts" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/accounts" }],
+  }),
   component: AccountsPage,
 });
 

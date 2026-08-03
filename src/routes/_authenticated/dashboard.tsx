@@ -9,6 +9,17 @@ import { ScenariosPanel } from "@/components/scenarios-panel";
 import { InboxPanel } from "@/components/inbox-panel";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard — Equilibrium" },
+      { name: "description", content: "Your Reality Map: net worth, available money, runway and financial health score, with your AI CFO on hand for every decision." },
+      { property: "og:title", content: "Dashboard — Equilibrium" },
+      { property: "og:description", content: "Your Reality Map: net worth, available money, runway and financial health score, with your AI CFO on hand for every decision." },
+      { property: "og:url", content: "https://cashflow-compass-014.lovable.app/dashboard" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/dashboard" }],
+  }),
   component: Dashboard,
 });
 

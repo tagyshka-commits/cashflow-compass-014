@@ -3,6 +3,17 @@ import { useSnapshot } from "@/hooks/use-snapshot";
 import { UpcomingPanel } from "@/components/upcoming-panel";
 
 export const Route = createFileRoute("/_authenticated/cashflow")({
+  head: () => ({
+    meta: [
+      { title: "Cash Flow — Equilibrium" },
+      { name: "description", content: "Money in motion: expected income, scheduled expenses and their lifecycle, so you always know what lands and what leaves next." },
+      { property: "og:title", content: "Cash Flow — Equilibrium" },
+      { property: "og:description", content: "Money in motion: expected income, scheduled expenses and their lifecycle, so you always know what lands and what leaves next." },
+      { property: "og:url", content: "https://cashflow-compass-014.lovable.app/cashflow" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/cashflow" }],
+  }),
   component: CashflowPage,
 });
 

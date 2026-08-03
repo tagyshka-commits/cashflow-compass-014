@@ -3,6 +3,17 @@ import { useSnapshot } from "@/hooks/use-snapshot";
 import { GoalsPanel } from "@/components/goals-panel";
 
 export const Route = createFileRoute("/_authenticated/goals")({
+  head: () => ({
+    meta: [
+      { title: "Goals — Equilibrium" },
+      { name: "description", content: "What you're building toward: goal progress, required daily and monthly savings, and AI coaching that adapts when life happens." },
+      { property: "og:title", content: "Goals — Equilibrium" },
+      { property: "og:description", content: "What you're building toward: goal progress, required daily and monthly savings, and AI coaching that adapts when life happens." },
+      { property: "og:url", content: "https://cashflow-compass-014.lovable.app/goals" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/goals" }],
+  }),
   component: GoalsPage,
 });
 
