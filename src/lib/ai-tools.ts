@@ -4,7 +4,8 @@
  * runs the required Supabase writes. RLS scopes rows to the user.
  */
 import { supabase } from "@/integrations/supabase/client";
-import type { FinancialSnapshot, Account } from "@/lib/snapshot";
+import { convert } from "@/lib/money";
+import type { FinancialSnapshot, Account, Debt } from "@/lib/snapshot";
 
 export type ProposalName =
   | "log_income"
@@ -12,6 +13,8 @@ export type ProposalName =
   | "transfer"
   | "lend_money"
   | "borrow_money"
+  | "receive_debt_repayment"
+  | "pay_debt"
   | "add_to_goal"
   | "move_to_protected"
   | "create_scenario"
