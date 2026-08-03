@@ -143,6 +143,50 @@ export function describeProposal(p: Proposal, snapshot: FinancialSnapshot): stri
       return [`${s(a.from_account)} − ${amt}`, `Create debt: ${s(a.borrower)} owes you ${amt}`];
     case "borrow_money":
       return [`${s(a.to_account)} + ${amt}`, `Create debt: you owe ${s(a.lender)} ${amt}`];
+    case "receive_debt_repayment": {
+      const debt = findDebt(snapshot.debts, s(a.debtor), "owed_to_me");
+      const already = a.already_logged === true || a.already_logged === "true";
+      const lines: string[] = [];
+      if (!already) lines.push(`${s(a.to_account)} + ${amt}`);
+      if (!debt) return [...lines, `No open debt found for "${s(a.debtor)}" — nothing to reduce`];
+      const { appliedPay, excess, nextDebt } = splitRepayment(
+        debt,
+        Number(a.amount),
+        String(a.currency),
+        snapshot.rates,
+      );
+      lines.push(
+        `${debt.name}: debt ${Number(debt.amount)} → ${Math.round(nextDebt * 100) / 100} ${debt.currency}${nextDebt <= 0.0001 ? " (paid)" : ""}`,
+      );
+      lines.push(
+        excess > 0
+          ? `Debt Repayment ${Math.round(appliedPay * 100) / 100} ${s(a.currency)} + income ${Math.round(excess * 100) / 100} ${s(a.currency)}`
+          : `Category · Debt Repayment`,
+      );
+      return lines;
+    }
+    case "pay_debt": {
+      const debt = findDebt(snapshot.debts, s(a.creditor), "i_owe");
+      const already = a.already_logged === true || a.already_logged === "true";
+      const lines: string[] = [];
+      if (!already) lines.push(`${s(a.from_account)} − ${amt}`);
+      if (!debt) return [...lines, `No open debt found for "${s(a.creditor)}" — nothing to reduce`];
+      const { appliedPay, excess, nextDebt } = splitRepayment(
+        debt,
+        Number(a.amount),
+        String(a.currency),
+        snapshot.rates,
+      );
+      lines.push(
+        `You owe ${debt.name}: ${Number(debt.amount)} → ${Math.round(nextDebt * 100) / 100} ${debt.currency}${nextDebt <= 0.0001 ? " (paid)" : ""}`,
+      );
+      lines.push(
+        excess > 0
+          ? `Debt Repayment ${Math.round(appliedPay * 100) / 100} ${s(a.currency)} + expense ${Math.round(excess * 100) / 100} ${s(a.currency)}`
+          : `Category · Debt Repayment`,
+      );
+      return lines;
+    }
     case "add_to_goal":
       return [`${s(a.from_account)} − ${amt}`, `Goal "${s(a.goal_name)}" +${amt}`];
     case "move_to_protected":
