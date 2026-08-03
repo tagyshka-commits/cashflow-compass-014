@@ -9,6 +9,17 @@ import { fmtMoney, ALL_CURRENCIES } from "@/lib/money";
 import type { Debt } from "@/lib/snapshot";
 
 export const Route = createFileRoute("/_authenticated/debts")({
+  head: () => ({
+    meta: [
+      { title: "Debts — Equilibrium" },
+      { name: "description", content: "Track what you owe and what is owed to you, with running balances, repayments and per-debtor status across currencies." },
+      { property: "og:title", content: "Debts — Equilibrium" },
+      { property: "og:description", content: "Track what you owe and what is owed to you, with running balances, repayments and per-debtor status across currencies." },
+      { property: "og:url", content: "https://cashflow-compass-014.lovable.app/debts" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/debts" }],
+  }),
   component: DebtsPage,
 });
 
