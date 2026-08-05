@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cashflow-compass-014.lovable.app/sitemap.xml
