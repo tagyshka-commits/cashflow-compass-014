@@ -1,0 +1,18 @@
+# Equilibrium
+
+> A multi-currency financial cockpit for individuals, families and small businesses — an AI CFO that understands cash, cards, bank accounts, crypto, debts, goals and real-world uncertainty.
+
+Equilibrium is not a simple expense tracker. It acts as a Personal CFO (with Family and Business modes on the roadmap), built for people who operate across currencies, irregular income, cash economies, and mixed asset classes. The AI can read natural-language instructions in several languages, suggest scenarios, log transactions, track repayments, and coach you toward savings goals without breaking your real liquidity.
+
+## Pages
+
+- [/](/): Home page — explains the AI CFO concept and redirects signed-in users to the dashboard.
+
+## Optional
+
+- [/auth](/auth): Sign-in and registration page (auth-gated; omit if you do not need authentication flows).
+- [/dashboard](/dashboard): Main authenticated cockpit — Reality Map, net worth, available money, runway, health score, AI chat and financial inbox (requires account).
+- [/accounts](/accounts): Multi-currency ledger of cash, bank accounts, cards, crypto and protected savings (requires account).
+- [/cashflow](/cashflow): Expected income, scheduled expenses and their lifecycle (requires account).
+- [/debts](/debts): Running balances for what you owe and what is owed to you, including repayments (requires account).
+- [/goals](/goals): Savings goals with progress, daily targets and AI coaching (requires account).
