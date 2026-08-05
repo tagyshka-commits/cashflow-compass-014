@@ -18,6 +18,13 @@ export const Route = createFileRoute("/")({
           "A cockpit for your money: cash, bank, cards and crypto across currencies, with an AI CFO that tells you what you can truly afford.",
       },
       { property: "og:url", content: "https://cashflow-compass-014.lovable.app/" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:title", content: "Equilibrium — Your AI Personal CFO" },
+      {
+        name: "twitter:description",
+        content:
+          "A cockpit for your money: cash, bank, cards and crypto across currencies, with an AI CFO that tells you what you can truly afford.",
+      },
     ],
     links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/" }],
   }),
