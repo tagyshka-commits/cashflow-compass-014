@@ -20,6 +20,12 @@ export const Route = createFileRoute("/auth")({
         content: "Sign in or create your Equilibrium account to open your Personal CFO cockpit.",
       },
       { property: "og:url", content: "https://cashflow-compass-014.lovable.app/auth" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:title", content: "Sign in — Equilibrium" },
+      {
+        name: "twitter:description",
+        content: "Sign in or create your Equilibrium account to open your Personal CFO cockpit.",
+      },
       { name: "robots", content: "noindex" },
     ],
     links: [{ rel: "canonical", href: "https://cashflow-compass-014.lovable.app/auth" }],
